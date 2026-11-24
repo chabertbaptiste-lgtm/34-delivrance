@@ -51,6 +51,7 @@ ol.rank li span:nth-child(2){flex:1}
   <div class="row">Niveau des bots :
     <span class="seg" id="diff"><button data-d="0">Facile</button><button data-d="1" class="sel">Normal</button><button data-d="2">Difficile</button></span></div>
   <button class="go" id="go">JOUER</button>
+  <p class="help" style="opacity:.6;margin-top:10px">Version 3</p>
   <p class="help"><b>Téléphone :</b> pouce gauche pour bouger, bouton rouge pour attaquer (glisse pour viser, tape pour viser tout seul), bouton jaune pour le Super.<br><b>Super :</b> il se charge en 3 K.O.<br>
   <b>PC :</b> ZQSD ou flèches pour bouger, souris pour viser, clic gauche pour attaquer, clic droit ou Espace pour le Super.</p>
 </div></div>
@@ -155,7 +156,7 @@ function startGame(){
   me=mk(0,CH[selCh].name,selCh,false);ents.push(me);
   for(let i=0;i<nbBots;i++){const c=(i%2===0)===(selCh==='bap')?'fra':'bap';ents.push(mk(i+1,'Bot '+(i+1),c,true));}
   const order=[...SPAWNS.keys()].sort(()=>Math.random()-.5);
-  ents.forEach((e,i)=>spawn(e,order[i]));ents.forEach(e=>e.shield=0);
+  ents.forEach((e,i)=>spawn(e,order[i]));ents.forEach(e=>e.shield=3);
   state='play';
 }
 
@@ -260,13 +261,14 @@ function botAct(e,dt){
 }
 
 /* ================= ENTREES ================= */
-const keys={};let mouse={x:0,y:0,down:false},isTouch=false,wantSuper=false;
+const keys={};let mouse={x:0,y:0,down:false},wantSuper=false;
+let isTouch=(typeof matchMedia==='function'&&matchMedia('(pointer:coarse)').matches===true)||(typeof navigator!=='undefined'&&navigator.maxTouchPoints>0&&typeof matchMedia==='function'&&matchMedia('(hover:none)').matches===true);
 const joy={id:null,sx:0,sy:0,x:0,y:0},atk={id:null,sx:0,sy:0,x:0,y:0},supB={id:null,sx:0,sy:0,x:0,y:0};
 let pendingShot=null,pendingSuper=null;
 const cv=document.getElementById('c'),ctx=cv.getContext('2d');
 let VW=800,VH=600,DPR=1,SC=1,camX=0,camY=0;
 function resize(){DPR=Math.min(window.devicePixelRatio||1,2);VW=window.innerWidth;VH=window.innerHeight;
-  cv.width=(VW*DPR)|0;cv.height=(VH*DPR)|0;cv.style.width=VW+'px';cv.style.height=VH+'px';SC=clamp(Math.sqrt(VW*VH)/760,.5,1.6);}
+  cv.width=(VW*DPR)|0;cv.height=(VH*DPR)|0;cv.style.width=VW+'px';cv.style.height=VH+'px';SC=clamp(Math.min(VW,VH)/640,.45,1.15);}
 window.addEventListener('resize',resize);window.addEventListener('orientationchange',()=>setTimeout(resize,250));if(window.visualViewport)window.visualViewport.addEventListener('resize',resize);resize();
 const btnA=()=>({x:VW-88,y:VH-118,r:50}),btnS=()=>({x:VW-196,y:VH-72,r:38});
 window.addEventListener('keydown',e=>{keys[e.code]=true;if(e.code==='Space'){wantSuper=true;e.preventDefault();}
@@ -276,7 +278,7 @@ window.addEventListener('blur',()=>{for(const k in keys)keys[k]=false;mouse.down
 cv.addEventListener('contextmenu',e=>e.preventDefault());
 cv.addEventListener('pointerdown',e=>{
   e.preventDefault();
-  if(e.pointerType==='mouse'){mouse.x=e.clientX;mouse.y=e.clientY;if(e.button===0)mouse.down=true;else if(e.button===2)wantSuper=true;return;}
+  if(e.pointerType==='mouse'){isTouch=false;mouse.x=e.clientX;mouse.y=e.clientY;if(e.button===0)mouse.down=true;else if(e.button===2)wantSuper=true;return;}
   isTouch=true;const x=e.clientX,y=e.clientY,A=btnA(),S=btnS();
   if(Math.hypot(x-S.x,y-S.y)<S.r*1.35&&supB.id===null){Object.assign(supB,{id:e.pointerId,sx:x,sy:y,x,y});}
   else if(x>VW*.5&&atk.id===null){Object.assign(atk,{id:e.pointerId,sx:x,sy:y,x,y});}
@@ -479,6 +481,14 @@ function render(){
   // buissons
   for(const b of BUSHES){if(!on(b.x+b.w/2,b.y+b.h/2,200))continue;
     for(const c of b.cs){ctx.fillStyle=c.k<.5?'#2f8f3f':'#37a047';ctx.beginPath();ctx.arc(c.x,c.y,c.r,0,6.283);ctx.fill();}}
+  // maison
+  ctx.lineWidth=8;ctx.strokeStyle=OUT;for(const r of HOUSE)ctx.strokeRect(r.x,r.y,r.w,r.h);
+  ctx.fillStyle='#5f7088';for(const r of HOUSE)ctx.fillRect(r.x,r.y,r.w,r.h);
+  ctx.strokeStyle='#4a586d';ctx.lineWidth=5;ctx.beginPath();
+  ctx.moveTo(240,1520);ctx.lineTo(960,1520);ctx.moveTo(767,1050);ctx.lineTo(767,1520);ctx.moveTo(530,1520);ctx.lineTo(530,1930);
+  ctx.moveTo(200,1280);ctx.lineTo(240,1520);ctx.lineTo(200,1760);ctx.moveTo(1000,1280);ctx.lineTo(960,1520);ctx.lineTo(1000,1760);
+  ctx.moveTo(560,1010);ctx.lineTo(767,1050);ctx.lineTo(975,1010);ctx.moveTo(290,1970);ctx.lineTo(530,1930);ctx.lineTo(770,1970);ctx.stroke();
+  ctx.fillStyle='#c9ccd2';ctx.strokeStyle=OUT;ctx.lineWidth=4;ctx.fillRect(690,1575,34,34);ctx.strokeRect(690,1575,34,34);
   // personnages
   const list=ents.filter(e=>e.alive&&visible(e,me)&&on(e.x,e.y,60)).sort((a,b)=>a.y-b.y);
   for(const e of list){
@@ -500,14 +510,6 @@ function render(){
     else{ctx.rotate(s.rot);if(s.t==='dys')ctx.scale(-1,1);ctx.textBaseline='middle';txt(s.ch,0,1,s.t==='dys'?30:26,s.t==='dys'?'#c58bff':'#fff');ctx.textBaseline='alphabetic';}
     ctx.restore();
   }
-  // maison
-  ctx.lineWidth=8;ctx.strokeStyle=OUT;for(const r of HOUSE)ctx.strokeRect(r.x,r.y,r.w,r.h);
-  ctx.fillStyle='#5f7088';for(const r of HOUSE)ctx.fillRect(r.x,r.y,r.w,r.h);
-  ctx.strokeStyle='#4a586d';ctx.lineWidth=5;ctx.beginPath();
-  ctx.moveTo(240,1520);ctx.lineTo(960,1520);ctx.moveTo(767,1050);ctx.lineTo(767,1520);ctx.moveTo(530,1520);ctx.lineTo(530,1930);
-  ctx.moveTo(200,1280);ctx.lineTo(240,1520);ctx.lineTo(200,1760);ctx.moveTo(1000,1280);ctx.lineTo(960,1520);ctx.lineTo(1000,1760);
-  ctx.moveTo(560,1010);ctx.lineTo(767,1050);ctx.lineTo(975,1010);ctx.moveTo(290,1970);ctx.lineTo(530,1930);ctx.lineTo(770,1970);ctx.stroke();
-  ctx.fillStyle='#c9ccd2';ctx.strokeStyle=OUT;ctx.lineWidth=4;ctx.fillRect(690,1575,34,34);ctx.strokeRect(690,1575,34,34);
   // feuillages
   for(const t of TREES){if(!on(t.x,t.y,t.c+20))continue;ctx.globalAlpha=.5;
     ctx.fillStyle='#1f7a34';ctx.beginPath();ctx.arc(t.x,t.y,t.c,0,6.283);ctx.fill();
@@ -516,7 +518,7 @@ function render(){
   // noms et barres
   for(const e of list){
     const top=e.y-(e.ch==='bap'?44:54)-(e.ch==='fra'&&e.hat?10:0);
-    txt(e.conf>0?scramble(e.name):e.name,e.x,top-12,14,e===me?'#8dffb0':'#fff');
+    txt(e.conf>0?scramble(e.name):e.name,e.x,top-12,Math.max(14,11/SC),e===me?'#8dffb0':'#fff');
     ctx.fillStyle=OUT;rr(e.x-27,top-8,54,10,4);ctx.fill();
     ctx.fillStyle=e===me?'#3df07a':'#ff4d3d';rr(e.x-25,top-6,50*Math.max(0,e.hp/e.maxhp),6,3);ctx.fill();
     if(e===holder){const cy=top-30;ctx.fillStyle='#ffd23f';ctx.strokeStyle=OUT;ctx.lineWidth=3;ctx.lineJoin='round';ctx.beginPath();
@@ -594,6 +596,7 @@ function go(){document.getElementById('menu').classList.add('hide');document.get
 document.getElementById('go').addEventListener('click',go);
 document.getElementById('again').addEventListener('click',go);
 document.getElementById('back').addEventListener('click',()=>{state='menu';document.getElementById('end').classList.add('hide');document.getElementById('menu').classList.remove('hide');});
+window.__dbg=()=>me?{x:Math.round(me.x),y:Math.round(me.y),ammo:+me.ammo.toFixed(2),touch:isTouch,sc:+SC.toFixed(2)}:null;
 if(typeof globalThis.__test==='function')globalThis.__test({startGame,step,render,get ents(){return ents},get state(){return state},get T(){return T},DIST,SPAWNS,blockedPt});
 </script>
 </body>
